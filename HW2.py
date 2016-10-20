@@ -77,7 +77,7 @@ class Imap(object):
 			potentials = set(self.vertex[0:i])
 			foundFlag = False
 			parentSet = None
-			for numParent in range(len(potentials)):
+			for numParent in range(len(potentials) + 1):
 				if foundFlag: 
 					break
 				parents = combinations(potentials, numParent)
@@ -104,8 +104,8 @@ if __name__ == '__main__':
 		if len(imap.edge) < numOfEdge:
 			numOfEdge = len(imap.edge)
 			order = orderNodes
-			edge = imap.edge		
-	print('The ordering nodes that give the fewest edges ' + str(order))
+			edge = imap.edge
+	print('The ordering nodes that give the fewest edges ' + str(order) + str(len(edge)) + 'edges')
 	print('Edges in the I-map')
 	for e in edge:
 		print(e[0] + ' -> ' + e[1])
