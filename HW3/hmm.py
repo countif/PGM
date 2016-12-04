@@ -1,4 +1,5 @@
 import numpy as np
+import time
 
 
 class HMM():
@@ -78,17 +79,74 @@ class HMM():
 
         self.fowardPropagation()
 
-    def hmm_training(self, epsilon):
+    def hmm_training(self, epsilon=1e-6, max_iteration=100):
+        start = time.time()
         self.fowardPropagation()
         last_logP = -10000
         index = 0
         logP = self.return_logP()
-        while abs(logP - last_logP) > epsilon and index < 100:
+        while abs(logP - last_logP) > epsilon and index < max_iteration:
             last_logP = logP
             index += 1
             self.hmm_iteration()
             logP = self.return_logP()
             print(str(index) + ' iter: logP =' + str(logP))
+        end = time.time()
+        return (end - start) * 1000 / index
+
+    def gibbs_sampling(self):
+        # re-generate y_t
+        p = [self.t[y, int(self.hidden_state[1])] * self.e[y, int(self.x[0])]
+             for y in range(self.state_num)]
+        self.hidden_state[0] = np.random.choice(
+            self.state_num, 1, p=p / sum(p))
+
+        for i in range(1, self.T - 1):
+            p = [self.t[int(self.hidden_state[i - 1]), y]
+                 * self.t[y, int(self.hidden_state[i + 1])]
+                 * self.e[y, int(self.x[i])] for y in range(self.state_num)]
+            self.hidden_state[i] = np.random.choice(
+                self.state_num, 1, p=p / sum(p))
+
+        p = [self.t[int(self.hidden_state[self.T - 2]), y] * self.e[y, int(self.x[self.T - 1])]
+             for y in range(self.state_num)]
+        self.hidden_state[self.T - 1] = np.random.choice(
+            self.state_num, 1, p=p / sum(p))
+
+    def gibbs_estimation(self):
+        self.t = np.zeros(shape=(self.state_num, self.state_num))
+        self.e = np.zeros(shape=(self.state_num, 2))
+        self.t += 0.01
+        self.e += 0.01
+        for i in range(1, self.T):
+            self.t[int(self.hidden_state[i - 1]),
+                   int(self.hidden_state[i])] += 1
+            self.e[int(self.hidden_state[i]), int(self.x[i])] += 1
+        self.t = self.t / self.t.sum(axis=1)[:, np.newaxis]
+        self.e = self.e / self.e.sum(axis=1)[:, np.newaxis]
+
+    def hmm_training_gibbs(self, mixed_time=5, epsilon=1e-6, max_iteration=100):
+        # initiation of states
+        for i in range(self.T):
+            self.hidden_state[i] = np.random.choice(
+                self.state_num, 1, p=self.prior)
+
+        start = time.time()
+        self.fowardPropagation()
+        last_logP = -10000
+        index = 0
+        logP = self.return_logP()
+        while abs(logP - last_logP) > epsilon and index < max_iteration:
+            last_logP = logP
+            index += 1
+            for i in range(mixed_time):
+                self.gibbs_sampling()
+            self.gibbs_estimation()
+            self.fowardPropagation()
+            logP = self.return_logP()
+            print(str(index) + ' iter: logP =' + str(logP))
+        end = time.time()
+        return (end - start) * 1000 / index
 
     def restructure(self):
         a = sorted(range(self.state_num), key=lambda x: self.e[x, 1])
