@@ -2,9 +2,7 @@ import numpy as np
 
 
 class MEMM():
-    """docstring for Memm"""
-
-    def __init__(self, seq, p, state_num=3, obs_num=2):
+    def __init__(self, seq, p=np.random.random(size=(3, 3, 2)), state_num=3, obs_num=2):
         self.state_num = state_num
         self.obs_num = obs_num
         self.x = np.append([0.], seq)
@@ -32,7 +30,7 @@ class MEMM():
         for s in range(self.state_num):
             self.P[s] = self.P[s] / self.P[s].sum(axis=(0))
 
-    def GIS_training(self, mixed_time=10):
+    def GIS_training(self, mixed_time=5):
         # initiate lambdas
         self.lambdas = np.array([1.] * self.state_num * self.state_num *
                                 self.obs_num).reshape(self.state_num, self.state_num, self.obs_num)
@@ -48,12 +46,26 @@ class MEMM():
             for s in range(self.state_num):
                 E[s] = self.P[s] * self.features[s].sum(
                     axis=1)[:, np.newaxis] / self.features[s].sum()
-            self.lambdas = self.lambdas + np.log(F / E)
+            self.lambdas = self.lambdas - np.log(F / E)
+        self.cal_P()
 
-    def gen_y(self):
+    # generate a new series of y's by gibbs sampling
+    def gibbs_sampling(self):
+        for t in range(1, self.T - 1):
+            p = self.P[int(self.y[t - 1]), :, int(self.x[t])] * \
+                self.P[:, int(self.y[t + 1]), int(self.x[t + 1])]
+            self.y[t] = np.random.choice(self.state_num, 1, p=p / sum(p))
+
+        self.y[self.T - 1] = np.random.choice(self.state_num, 1, p=self.P[
+                                              int(self.y[self.T - 2]), :, int(self.x[self.T - 1])])
+
+    def gibbs_estimation(self):
+        self.P = np.zeros(shape=(self.state_num, self.state_num, self.obs_num))
+        self.P += 0.01
         for t in range(1, self.T):
-            self.y[t] = np.random.choice(
-                self.state_num, 1, p=self.P[int(self.y[t - 1]), :, int(self.x[t])])
+            self.P[int(self.y[t - 1]), int(self.y[t]), int(self.x[t])] += 1
+        for s in range(self.state_num):
+            self.P[s] = self.P[s] / self.P[s].sum(axis=(0))
 
     def restructure(self):
         e = np.zeros(self.state_num)
@@ -81,10 +93,11 @@ class MEMM():
             self.y[t - 1] = phi[t, int(self.y[t])]
         return self.y[1:]
 
-    def memm_training(self):
-        for i in range(100):
+    def memm_training(self, mixed_time=5, max_iteration=100):
+        for i in range(max_iteration):
             self.GIS_training()
-            self.gen_y()
+            for x in range(mixed_time):
+                self.gibbs_sampling()
 
 
 class DiceSeries():
@@ -119,8 +132,7 @@ if __name__ == "__main__":
         for j in range(3):
             for t in range(2):
                 p[i, j, t] = trans[i, j] * emis[j, t]
-    m = MEMM(seq, p)
-
+    m = MEMM(seq)
     likelystate = m.memm_viterbi()
     print (likelystate == hidden_state).sum(
     )
