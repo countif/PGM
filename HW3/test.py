@@ -1,5 +1,5 @@
 import numpy as np
-outfile_name = '100-dices-1.npz'
+outfile_name = '1000-dices-1.npz'
 npzfile = np.load(outfile_name)
 print npzfile['state_est'][0, :]
 print npzfile['trans_est'][0, 0, :]
