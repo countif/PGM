@@ -24,7 +24,7 @@ class DiceSeries():
         return (seq, hidden_state)
 
 
-def test(trans, emis, seq):
+def test(trans, emis, seq, hidden_state):
     state_est = np.zeros(shape=3)
     trans_est = np.zeros(shape=(2, 3, 3))
     emis_est = np.zeros(shape=(2, 3))
@@ -54,7 +54,6 @@ if __name__ == "__main__":
     trans = np.array([[0.8, 0.2, 0], [0.1, 0.7, 0.2], [0.1, 0, 0.9]])
     emis = np.array([[0.9, 0.5, 0.1], [0.1, 0.5, 0.9]]).T
     r = DiceSeries(3, trans, emis)
-    (seq, hidden_state) = r.genSeq(1000)
 
     state_est = np.zeros(shape=(1000, 3))
     trans_est = np.zeros(shape=(1000, 2, 3, 3))
@@ -64,9 +63,10 @@ if __name__ == "__main__":
     outfile_name = '1000-dices-1'
 
     for i in range(1000):
-        if (i + 1) % 1 == 0:
+        if (i) % 1 == 0:
             np.savez(outfile_name, state_est=state_est, trans_est=trans_est,
                      emis_est=emis_est, elapsed_time=elapsed_time)
+            (seq, hidden_state) = r.genSeq(100)
 
         trans = np.random.random(size=(3, 3))
         emis = np.random.random(size=(3, 2))
@@ -74,4 +74,6 @@ if __name__ == "__main__":
         emis = emis / emis.sum(axis=1)[:, np.newaxis]
 
         state_est[i], trans_est[i], emis_est[
-            i], elapsed_time[i] = test(trans, emis, seq)
+            i], elapsed_time[i] = test(trans, emis, seq, hidden_state)
+    np.savez(outfile_name, state_est=state_est, trans_est=trans_est,
+             emis_est=emis_est, elapsed_time=elapsed_time)
